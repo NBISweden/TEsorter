@@ -25,8 +25,8 @@ class IntactRecord():
 		self.dict['Identity'] = float(self.dict['Identity'])
 		self.dict['Insertion_Time'] = int(self.dict['Insertion_Time'])
 		self.dict['TE_type'] = self.dict['TE_type'] if self.dict['TE_type'] != 'NA' else 'LTR'
-		for key, value in self.dict.items():
-			try: exec 'self.{} = value'.format(key)
+		for key, value in list(self.dict.items()):
+			try: exec('self.{} = value'.format(key))
 			except SyntaxError: pass
 		self.chr, self.start, self.end = re.compile(r'(\S+?):(\d+)\.\.(\d+)').match(self.LTR_loc).groups()
 		self.start, self.end = int(self.start), int(self.end)
@@ -36,7 +36,7 @@ class CandidateRecord():
 		if len(temp) < len(title):
 			temp += [None] * (len(title)-len(temp))
 		self.dict = dict([(key, value) for key, value in zip(title, temp)])
-		for key, value in self.dict.items():
+		for key, value in list(self.dict.items()):
 			try: self.dict[key] = int(value)
 			except: continue
 		try: self.dict['similarity'] = float(self.dict['similarity'])
@@ -51,8 +51,8 @@ class CandidateRecord():
 				self.dict['ageya'] = None
 		except:
 			self.dict['ageya'] = None
-		for key, value in self.dict.items():
-			try: exec 'self.{} = value'.format(key)
+		for key, value in list(self.dict.items()):
+			try: exec('self.{} = value'.format(key))
 			except SyntaxError: pass
 		self.INT_str, self.INT_end = self.lLTR_end+1, self.rLTR_str-1
 	def write(self, fout):
@@ -61,7 +61,7 @@ class CandidateRecord():
 				self.seqid, self.chr, self.direction, self.TSD, self.lTSD, self.rTSD, 
 				self.motif, self.superfamily, self.family, self.ageya]
 		self.line = ['' if value is None else str(value) for value in self.line]
-		print >> fout, '\t'.join(self.line)
+		print('\t'.join(self.line), file=fout)
 class Retriever():
 	def __init__(self, genome):
 		self.genome = genome
@@ -76,7 +76,7 @@ class Retriever():
 		self.retriever_all_scn2 = self.retriever_all_scn + '2'
 		if not (os.path.exists(self.retriever_all_scn2) \
 		   and os.path.getsize(self.retriever_all_scn2) > 1000):
-			print >>sys.stderr, 're-organize', self.retriever_all_scn
+			print('re-organize', self.retriever_all_scn, file=sys.stderr)
 			self.re_scn()
 		self.retriever_all_scn = self.retriever_all_scn2
 	def get_full_seqs(self, fout=sys.stdout):
@@ -85,7 +85,7 @@ class Retriever():
 			ltr_seq = d_seqs[rc.chr].seq[rc.start-1:rc.end]
 			TE_type = rc.TE_type if rc.TE_type != 'NA' else 'LTR'
 			ltr_cls = '{}/{}'.format(TE_type, rc.SuperFamily)
-			print >> fout, '>{}#{}\n{}'.format(rc.LTR_loc, ltr_cls, ltr_seq)
+			print('>{}#{}\n{}'.format(rc.LTR_loc, ltr_cls, ltr_seq), file=fout)
 	def re_scn(self): # remove redundant
 		idmap = self.seqIdmap
 		lrt_set = set([])
@@ -115,7 +115,7 @@ class Retriever():
 			lrt_set.add(key)
 			rc.write(f)
 		f.close()
-		print >>sys.stderr, '{} total {}, {} without chr, {} discarded, {} retained'.format(self.retriever_all_scn, i, j, k, i-k)
+		print('{} total {}, {} without chr, {} discarded, {} retained'.format(self.retriever_all_scn, i, j, k, i-k), file=sys.stderr)
 	@property
 	def seqIdmap(self):
 		i = 0
@@ -188,15 +188,15 @@ def InsertionTimePlot(genome, type, mu=1.3e-8):
 	tmpfile = genome + '.pass.insert_time'	
 	f = open(tmpfile, 'w')
 	line = ['TE_Type', 'Insertion_Time']
-	print >>f, '\t'.join(line)
+	print('\t'.join(line), file=f)
 	for rc in records:
 		Type = typeStr.format(**rc.dict)
 		if rc.dict[timeStr] is None:
 			continue
 		Insertion_Time = rc.dict[timeStr] / 1e6 * (1.3e-8 / mu) # Mya
 		line = [Type, Insertion_Time]
-		line = map(str, line)
-		print >>f, '\t'.join(line)
+		line = list(map(str, line))
+		print('\t'.join(line), file=f)
 	f.close()
 	
 	# plot
@@ -208,7 +208,7 @@ ggsave('{}', p)
 '''.format(tmpfile, outfig)
 	r_file = tmpfile + '.r'
 	with open(r_file, 'w') as f:
-		print >>f, r_src
+		print(r_src, file=f)
 	cmd = 'Rscript {}'.format(r_file)
 	os.system(cmd)
 class Classifier():
@@ -238,7 +238,7 @@ class Classifier():
 		yield record
 	def classify(self, ):
 		line = ['#TE', 'Superfamily', 'Family', 'Clade', 'Code', 'Strand', 'hmmmatchs']
-		print >> self.fout, '\t'.join(line)
+		print('\t'.join(line), file=self.fout)
 		for rc in self.parse():
 			rc_flt = rc #[line for line in rc if line.gene in self.markers]
 			#if len(rc_flt) == 0:
@@ -261,7 +261,7 @@ class Classifier():
 			elif self.db == 'gydb':
 				order, superfamily, max_clade, coding = self.identify(genes, clades)
 			line = [lid, order, superfamily, max_clade, coding, strand, domains]
-			print >> self.fout, '\t'.join(line)
+			print('\t'.join(line), file=self.fout)
 			self.ltrid, self.order, self.superfamily, self.clade, self.code, self.strand, self.domains = line
 			yield self
 	def identify_rexdb(self, genes, clades):
@@ -317,7 +317,7 @@ class Classifier():
 		try: (order, superfamily) = d_map[max_clade]
 		except KeyError: 
 			(order, superfamily) = ('Unknown', 'unknown')
-			print >>sys.stderr, 'unknown clade: {}'.format(max_clade)
+			print('unknown clade: {}'.format(max_clade), file=sys.stderr)
 		try:
 			ordered_genes = perfect_structure[(order, superfamily)]
 			my_genes = [gene for gene in genes if gene in set(ordered_genes)]
@@ -337,7 +337,7 @@ class Classifier():
 			else:
 				try: intid = idmap[rc.id.split('#')[0]]
 				except KeyError as e:	# this should be rare
-					print >>sys.stderr, '[Warning] skipped', e
+					print('[Warning] skipped', e, file=sys.stderr)
 			if intid in d_class:
 				neword, newfam = d_class[intid]
 				re_org = self.re_orgnize(rc.id, neword, newfam)
@@ -346,7 +346,7 @@ class Classifier():
 					rc.id = re_org
 #					print >>sys.stderr, rc.description, len(rc.seq)
 			SeqIO.write(rc, fout, 'fasta')
-		print >> sys.stderr, i, 'sequences re-classified'
+		print(i, 'sequences re-classified', file=sys.stderr)
 	def re_orgnize(self, rawid, neword, newfam):
 		rawid, rawcls = rawid.split('#')
 		try: raword, rawfam = rawcls.split('/')[:2]
@@ -375,7 +375,7 @@ class CladeInfo():
 			if i == 1:
 				title = temp
 				continue
-			self.dict = dict(zip(title, temp))
+			self.dict = dict(list(zip(title, temp)))
 			if self.dict['Clade'] == 'NA':
 				self.clade = self.dict['Cluster_or_genus']
 			else:
@@ -442,10 +442,10 @@ class HmmDomRecord():
 				= temp[:22]
 		self.tlen, self.qlen, self.domi, self.domn, \
 			self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend = \
-			map(int, [self.tlen, self.qlen, self.domi, self.domn, \
-				self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend])
+			list(map(int, [self.tlen, self.qlen, self.domi, self.domn, \
+				self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend]))
 		self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc = \
-			map(float, [self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc])
+			list(map(float, [self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc]))
 		self.tdesc = ' '.join(temp[22:])
 	@property
 	def hmmcov(self):
@@ -504,7 +504,7 @@ def hmm2best(inSeq, inHmmouts, prefix=None, db='rexdb', seqtype='dna', mincov=20
 #	print d_besthit
 	d_seqs = seq2dict(inSeq)
 	lines = []
-	for (qid, domain), rc in d_besthit.items():
+	for (qid, domain), rc in list(d_besthit.items()):
 		if rc.hmmcov < mincov or rc.evalue > maxeval:
 			continue
 #		gid = '{}|{}|{}'.format(qid, domain, rc.tname)
@@ -542,17 +542,17 @@ def hmm2best(inSeq, inHmmouts, prefix=None, db='rexdb', seqtype='dna', mincov=20
 	fgff = open(gff, 'w')
 	fseq = open(seq, 'w')
 	ftsv = open(tsv, 'w')
-	print >> ftsv, '\t'.join(['#id', 'length', 'evalue', 'coverge', 'probability'])
+	print('\t'.join(['#id', 'length', 'evalue', 'coverge', 'probability']), file=ftsv)
 	for line in sorted(lines, key=lambda x: (x[0], x[-3], x[3])):
 		gffline = line[:9]
-		gffline = map(str, gffline)
-		print >> fgff, '\t'.join(gffline)
+		gffline = list(map(str, gffline))
+		print('\t'.join(gffline), file=fgff)
 		gid, gseq = line[-2:]
 		gdesc = line[8]
-		print >> fseq, '>{} {}\n{}'.format(gid, gdesc, gseq)
+		print('>{} {}\n{}'.format(gid, gdesc, gseq), file=fseq)
 		evalue, hmmcov, acc = line[-6:-3]
 		line = [gid, len(gseq), evalue, hmmcov, acc]
-		print >> ftsv, '\t'.join(map(str, line))
+		print('\t'.join(map(str, line)), file=ftsv)
 	fgff.close()
 	fseq.close()
 	return gff, seq
@@ -576,15 +576,15 @@ def LTRlibAnn(ltrlib, seqtype='dna', hmmdb='rexdb', prefix=None):
 	if prefix is None:
 		prefix = '{}.{}'.format(ltrlib, hmmdb)
 	if seqtype == 'dna':
-		print >>sys.stderr, 'translating {} in six frames'.format(ltrlib)
+		print('translating {} in six frames'.format(ltrlib), file=sys.stderr)
 		aaSeq = translate(ltrlib)
 #		aaSeq = ltrlib + '.aa'
 	elif seqtype == 'prot':
 		aaSeq = ltrlib
-	print >>sys.stderr, 'HMM scanning against {}'.format(DB[hmmdb])
+	print('HMM scanning against {}'.format(DB[hmmdb]), file=sys.stderr)
 	domtbl = hmmscan(aaSeq, hmmdb=DB[hmmdb], prefix=prefix)
 #	domtbl = prefix + '.domtbl'
-	print >>sys.stderr, 'generating gene anntations'
+	print('generating gene anntations', file=sys.stderr)
 	gff, geneSeq = hmm2best(aaSeq, [domtbl], db=hmmdb, prefix=prefix, seqtype=seqtype)
 	return gff, geneSeq, aaSeq
 def replaceCls(ltrlib, seqtype='dna', db='rexdb'):

@@ -4,6 +4,7 @@
 import sys
 import os, stat
 import shutil
+from io import IOBase
 #import psutil
 import subprocess
 from optparse import OptionParser
@@ -14,26 +15,30 @@ logger = LOGGER = logging.getLogger(__name__)
 try:
 	import pp
 except ImportError as e:
-	logger.warn('{}\nparallel computing is not available'.format(e))
-try: 
+	logger.warning('{}\nparallel computing is not available'.format(e))
+try:
 	import drmaa    # for grid
 	from tempfile import NamedTemporaryFile
-except ImportError as e:
-	logger.warn('{}\ngrid computing is not available'.format(e))
+except (RuntimeError,ImportError,AttributeError) as e:
+	if "DRMAA_LIBRARY_PATH" in format(e):
+		logger.warning('Grid computing is not available because DRMAA not configured properly: {}'.format(e))
+	else:
+		logger.warning('Grid computing is not available because DRMAA not installed: {}'.format(e))
+	logger.info('No DRMAA, Switching to local/cluster mode.')
 
 __version__ = '1.0'
 
 class Grid(object):
-	def __init__(self, cmd_list=None, 
-			work_dir=None, out_path=None, 
+	def __init__(self, cmd_list=None,
+			work_dir=None, out_path=None,
 			err_path=None, grid_opts='',
-			cpu=1, mem='1g', template=None, 
+			cpu=1, mem='1g', template=None,
 			tc_tasks = None, script=None,
 			join_files=True):
 		self.cmd_list = cmd_list
 		try: self.grid = self.which_grid()
 		except Exception as e:
-			logger.warn(e)
+			logger.warning(e)
 			self.grid = 'unknown'
 		self.grid_opts = grid_opts
 		self.template = template
@@ -67,9 +72,9 @@ class Grid(object):
 			elif not self.err_path.startswith(':'):
 				self.err_path = ':' + self.err_path
 			self.join_files = join_files	# True if stdin and stdout should be merged, False otherwise.
-			
+
 	def make_script(self, fout=sys.stdout):
-		print >> fout, '#!/bin/bash'
+		print('#!/bin/bash', file=fout)
 		if self.template is None:
 			if self.grid == 'sge':
 #			print >> fout, '#$ {}'.format(self.grid_opts)
@@ -78,7 +83,7 @@ class Grid(object):
 				self.template = 'if [ $SLURM_ARRAY_TASK_ID -eq {id} ]; then\n{cmd}\nfi'
 		for i, cmd in enumerate(self.cmd_list):
 			grid_cmd = self.template.format(id=i+1, cmd=cmd)
-			print >> fout, grid_cmd
+			print(grid_cmd, file=fout)
 	def submit(self):
 		job_status = []
 		s = drmaa.Session()
@@ -104,7 +109,7 @@ class Grid(object):
 			try:
 				retval = s.wait(curjob, drmaa.Session.TIMEOUT_WAIT_FOREVER)
 			except Exception as e:
-				logger.warn('Job {}: {}'.format(curjob, e))
+				logger.warning('Job {}: {}'.format(curjob, e))
 				job_status += [(None, 1)]
 				continue
 			logger.info('Task: {0} finished with status {1}, exit code {2}'.format(
@@ -124,7 +129,7 @@ class Grid(object):
 		elif 'Slurm' in name:
 			return 'slurm'
 		else:
-			logger.warn('Please provide your grid system `{}` to auther'.format(name))
+			logger.warning('Please provide your grid system `{}` to auther'.format(name))
 def run_tasks(cmd_list, tc_tasks=None, mode='grid', grid_opts='', cpu=1, mem='1g', cont=1,
 			retry=1, script=None, out_path=None, completed=None, cmd_sep='\n', **kargs):
 	if not cmd_list:
@@ -138,7 +143,7 @@ def run_tasks(cmd_list, tc_tasks=None, mode='grid', grid_opts='', cpu=1, mem='1g
 	close_cmp = False
 	# file name
 	xmod = 'a' if cont else 'w'
-	if completed is not None and not isinstance(completed, file):
+	if completed is not None and not isinstance(completed, IOBase):
 		completed = open(completed, xmod)
 		close_cmp = True
 	ntry = 0
@@ -153,7 +158,7 @@ def run_tasks(cmd_list, tc_tasks=None, mode='grid', grid_opts='', cpu=1, mem='1g
 			avail_tasks = [tc_tasks0, len(cmd_list)]
 			tc_tasks = min(avail_tasks)
 			logger.info('reset tc_tasks to {} by {}'.format(tc_tasks, avail_tasks))
-			job = Grid(cmd_list=cmd_list, tc_tasks=tc_tasks, grid_opts=grid_opts, 
+			job = Grid(cmd_list=cmd_list, tc_tasks=tc_tasks, grid_opts=grid_opts,
 						script=script, out_path=out_path, cpu=cpu, mem=mem, **kargs)
 			logger.info('submiting jobs with {}'.format(job.grid))
 			job_status = job.submit()
@@ -167,7 +172,7 @@ def run_tasks(cmd_list, tc_tasks=None, mode='grid', grid_opts='', cpu=1, mem='1g
 			fout = open(out_path, xmod) if out_path is not None else None
 			for (stdout, stderr, status) in job_status:
 				if fout is not None:
-					print >>fout, '>>STATUS:\t{}\n>>STDOUT:\n{}\n>>STDERR:\n{}'.format(status, stdout, stderr)
+					print('>>STATUS:\t{}\n>>STDOUT:\n{}\n>>STDERR:\n{}'.format(status, stdout, stderr), file=fout)
 				exit_codes += [status]
 			if fout is not None:
 				fout.close()
@@ -213,7 +218,7 @@ DATE=`date +"%Y-%m-%d-%H-%M-%S"`
 echo "$JID:$PWD:\"$CMD\":$(whoami):$DATE" >> $LOGFILE
 '''.format(jid, pwd, opts, cmd)
     run_cmd(wlog)
-		
+
 def file2list(cmd_file, sep="\n"):
 	if not '\n' in sep:
 		sep += '\n'
@@ -234,8 +239,8 @@ def run_cmd(cmd, logger=None, log=None):
 	output = job.communicate()
 	status = job.poll()
 	if logger is not None and status > 0:
-		 logger.warn("exit code {} for CMD `{}`: ".format(status, cmd))
-		 logger.warn('\n\tSTDOUT:\n{0}\n\tSTDERR:\n{1}\n\n'.format(*output))
+		 logger.warning("exit code {} for CMD `{}`: ".format(status, cmd))
+		 logger.warning('\n\tSTDOUT:\n{0}\n\tSTDERR:\n{1}\n\n'.format(*output))
 	return output + (status,)
 
 def default_processors(actual=None):
@@ -295,16 +300,16 @@ def submit_pp(cmd_file, processors=None, cmd_sep="\n", cont=True):
 		if len(cmd.split('\n')) > 100:
 			son_cmd_file = '%s.%s.sh' % (cmd_file, i)
 			with open(son_cmd_file, 'w') as f:
-				print >>f, cmd
+				print(cmd, file=f)
 			cmd_uncpd_list[i] = 'sh %s' % (son_cmd_file,)
 
-	print '''
+	print('''
 	total commands:\t%s
 	skipped commands:\t%s
 	retained commands:\t%s
 	''' % (len(set(cmd_list)), \
 	len(set(cmd_list))-len(cmd_uncpd_list), \
-	len(cmd_uncpd_list))
+	len(cmd_uncpd_list)))
 
 	if not processors:
 		processors = default_processors(len(cmd_uncpd_list))
@@ -384,7 +389,7 @@ def run_job(cmd_file, cmd_list=None, tc_tasks=8, mode='grid', grid_opts='', cont
 	if cmd_list is not None:
 		with open(cmd_file, 'w') as fp:
 			for cmd in cmd_list:
-				print >> fp, cmd
+				print(cmd, file=fp)
 	if kargs.get('cpu') is None:
 		kargs['cpu'] = 1
 	if kargs.get('mem') is None:
@@ -403,7 +408,7 @@ def run_job(cmd_file, cmd_list=None, tc_tasks=8, mode='grid', grid_opts='', cont
 	if not cont and os.path.exists(out_path):
 		os.remove(out_path)
 	cmd_list = get_cmd_list(cmd_file, cmd_cpd_file, cmd_sep=cmd_sep, cont=cont)
-	exit = run_tasks(cmd_list, tc_tasks=tc_tasks, mode=mode, grid_opts=grid_opts, 
+	exit = run_tasks(cmd_list, tc_tasks=tc_tasks, mode=mode, grid_opts=grid_opts,
 				retry=retry, script=script, out_path=out_path, cont=cont,
 				completed=cmd_cpd_file, cmd_sep=cmd_sep, **kargs)
 	if fail_exit and not exit == 0:

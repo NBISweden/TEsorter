@@ -51,23 +51,28 @@ BLASType = {
     'qcovhsp': float,
     'sstrand': str,
 	}
-	
-	
+
+
 def Args():
-	parser = argparse.ArgumentParser(version=__version__)
+	parser = argparse.ArgumentParser(
+            prog='TEsorter',
+            description='lineage-level classification of transposable elements using conserved protein domains',
+        )
+	parser.add_argument('--version', action='version',
+                    version='%(prog)s {version}'.format(version=__version__))
 	parser.add_argument("sequence", action="store",type=str,
 					help="input TE sequences in fasta format [required]")
 	parser.add_argument("-db","--hmm-database", action="store",type=str,
-					default='rexdb', choices=DB.keys(),  
+					default='rexdb', choices=list(DB.keys()),
 					help="the database used [default=%(default)s]")
 	parser.add_argument("-st","--seq-type", action="store",type=str,
-					default='nucl', choices=['nucl', 'prot'],  
+					default='nucl', choices=['nucl', 'prot'],
 					help="'nucl' for DNA or 'prot' for protein [default=%(default)s]")
 	parser.add_argument("-pre", "--prefix", action="store",
 					default=None, type=str,
 					help="output prefix [default='{-s}.{-db}']")
 	parser.add_argument("-fw", "--force-write-hmmscan", action="store_true",
-					default=False, 
+					default=False,
 					help="if False, will use the existed hmmscan outfile and skip hmmscan [default=%(default)s]")
 	parser.add_argument("-p", "--processors", action="store",
 					default=4, type=int,
@@ -80,15 +85,15 @@ def Args():
 					help="mininum coverage for protein domains in HMMScan output [default=%(default)s]")
 	parser.add_argument("-eval", "--max-evalue", action="store",
 					default=1e-3, type=float,
-					help="maxinum E-value for protein domains in HMMScan output [default=%(default)s]")				
+					help="maxinum E-value for protein domains in HMMScan output [default=%(default)s]")
 	parser.add_argument("-dp2", "--disable-pass2", action="store_true",
-					default=False, 
+					default=False,
 					help="do not further classify the unclassified sequences [default=%(default)s for `nucl`, True for `prot`]")
 	parser.add_argument("-rule", "--pass2-rule", action="store",
 					default='80-80-80', type=str,
 					help="classifying rule [identity-coverage-length] in pass-2 based on similarity [default=%(default)s]")
 	parser.add_argument("-nolib", "--no-library", action="store_true",
-					default=False, 
+					default=False,
 					help="do not generate a library file for RepeatMasker [default=%(default)s]")
 	parser.add_argument("-norc", "--no-reverse", action="store_true",
 					default=False,
@@ -99,7 +104,7 @@ def Args():
 	args = parser.parse_args()
 	if args.prefix is None:
 		args.prefix = '{}.{}'.format(os.path.basename(args.sequence), args.hmm_database)
-	
+
 	if args.seq_type == 'prot':
 		args.disable_pass2 = True
 		args.no_reverse = True
@@ -118,21 +123,21 @@ def pipeline(args):
 		os.makedirs(args.tmp_dir)
 	logger.info( 'Start classifying pipeline' )
 	seq_num = len([1 for rc in SeqIO.parse(args.sequence, 'fasta')])
-	logger.info('total {} sequences'.format(seq_num))	
+	logger.info('total {} sequences'.format(seq_num))
 	# search against DB and parse
 	gff, geneSeq = LTRlibAnn(
-			ltrlib = args.sequence, 
-			hmmdb = args.hmm_database, 
+			ltrlib = args.sequence,
+			hmmdb = args.hmm_database,
 			seqtype = args.seq_type,
 			prefix = args.prefix,
-			force_write_hmmscan = args.force_write_hmmscan, 
+			force_write_hmmscan = args.force_write_hmmscan,
 			processors = args.processors,
 			tmpdir = args.tmp_dir,
 			mincov = args.min_coverage,
 			maxeval = args.max_evalue,
 			)
-			
-	# classify	
+
+	# classify
 	classify_out = args.prefix + '.cls.tsv'
 	fc = open(classify_out, 'w')
 	d_class = OrderedDict()
@@ -145,26 +150,26 @@ def pipeline(args):
 
 	# pass-2 classify
 	if classfied_num == 0 and not args.disable_pass2:
-			logger.warn('skipping pass-2 classification for zero classification in step-1')
+			logger.warning('skipping pass-2 classification for zero classification in step-1')
 			args.disable_pass2 = True
 	if not args.disable_pass2:
 		logger.info('classifying the unclassified sequences by searching against the classified ones')
 		classified_seq = '{}/pass1_classified.fa'.format(args.tmp_dir)
 		unclassified_seq = '{}/pass1_unclassified.fa'.format(args.tmp_dir)
-		get_records(args.sequence, classified_seq, d_class.keys(), type='fasta', process='get')
-		get_records(args.sequence, unclassified_seq, d_class.keys(), type='fasta', process='remove')
+		get_records(args.sequence, classified_seq, list(d_class.keys()), type='fasta', process='get')
+		get_records(args.sequence, unclassified_seq, list(d_class.keys()), type='fasta', process='remove')
 
 		logger.info('using the {} rule'.format(args.pass2_rule))
-		d_class2 = classify_by_blast(classified_seq, unclassified_seq, 
+		d_class2 = classify_by_blast(classified_seq, unclassified_seq,
 						seqtype=args.seq_type, ncpu=args.processors,
 						min_identtity=args.p2_identity, min_coverge=args.p2_coverage, min_length=args.p2_length,
 						)
 		fc = open(classify_out, 'a')
-		for unclfed_id, clfed_id in d_class2.items():
+		for unclfed_id, clfed_id in list(d_class2.items()):
 			clfed = d_class[clfed_id]
 			order, superfamily, clade = clfed.order, clfed.superfamily, 'unknown'
 			line = [unclfed_id, order, superfamily, clade, 'none', '?', 'none']
-			print >> fc, '\t'.join(line)
+			print('\t'.join(line), file=fc)
 			# update
 			d_class[unclfed_id] = CommonClassification(*line)
 		fc.close()
@@ -215,10 +220,10 @@ def pipeline(args):
 		shutil.rmtree(args.tmp_dir)
 def summary(d_class):
 	d_sum = {}
-	for sid, clf in d_class.iteritems():
+	for sid, clf in d_class.items():
 		key = (clf.order, clf.superfamily)
 		d_sum[key] = [0, 0, [], 0] # #seqs, #seqs in clades, #clades, #full domains
-	for sid, clf in d_class.iteritems():
+	for sid, clf in d_class.items():
 		key = (clf.order, clf.superfamily)
 		d_sum[key][0] += 1
 		if clf.clade not in {'unknown', 'mixture'}:
@@ -229,14 +234,14 @@ def summary(d_class):
 	out_order = ['LTR', 'pararetrovirus', 'DIRS', 'Penelope', 'LINE', 'TIR', 'Helitron', 'Maverick', 'mixture', 'Unknown']
 	template = '{:<16}{:<16}{:>15}{:>15}{:>15}{:>15}'
 	line = ['Order', 'Superfamily', '# of Sequences', '# of Clade Sequences', '# of Clades', '# of full Domains']
-	
-	print >> sys.stderr, template.format(*line)
+
+	print(template.format(*line), file=sys.stderr)
 	for (order, superfamliy), summary in \
-			sorted(d_sum.items(), key=lambda x: (out_order.index(x[0][0]), x[0][1])):
+			sorted(list(d_sum.items()), key=lambda x: (out_order.index(x[0][0]), x[0][1])):
 		line = [order, superfamliy, summary[0], summary[1], len(set(summary[2])), summary[3]]
-		line = map(str, line)
+		line = list(map(str, line))
 		line = template.format(*line)
-		print >> sys.stderr, line
+		print(line, file=sys.stderr)
 def fmt_cls(*args):
 	values = []
 	for arg in args:
@@ -244,9 +249,9 @@ def fmt_cls(*args):
 			continue
 		values += [arg]
 	return '/'.join(values)
-	
+
 class CommonClassification(object):
-	def __init__(self, id=None, order=None, superfamily=None, 
+	def __init__(self, id=None, order=None, superfamily=None,
 				clade=None, completed=None, strand=None, domains=None):
 		self.id = id
 		self.order = order
@@ -256,19 +261,20 @@ class CommonClassification(object):
 		self.strand = strand
 		self.domains = domains
 
-def classify_by_blast(db_seq, qry_seq, blast_out=None, seqtype='nucl', ncpu=4, 
+def classify_by_blast(db_seq, qry_seq, blast_out=None, seqtype='nucl', ncpu=4,
 					  min_identtity=80, min_coverge=80, min_length=80):
 	'''pass-2 classify'''
 	blast_outfmt = "'6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen qcovs qcovhsp sstrand'"
 	blast_out = blast(db_seq, qry_seq, seqtype=seqtype, blast_out=blast_out, blast_outfmt=blast_outfmt, ncpu=ncpu)
 	with open(blast_out+'.best', 'w') as fb:
 		d_best_hit = BlastOut(blast_out, blast_outfmt).filter_besthit(fout=fb)
-	for qseqid, rc in d_best_hit.iteritems():
+	d_best_hit_copy = d_best_hit.copy()
+	for qseqid, rc in d_best_hit_copy.items():
 		if not (rc.pident >= min_identtity and rc.qcovs >= min_coverge and rc.length >= min_length):
 			del d_best_hit[qseqid]
-	d_class = OrderedDict([(qseqid, rc.sseqid) for qseqid, rc in d_best_hit.iteritems()])
+	d_class = OrderedDict([(qseqid, rc.sseqid) for qseqid, rc in d_best_hit.items()])
 	return d_class
-	
+
 def blast(db_seq, qry_seq, seqtype='nucl', blast_out=None, blast_outfmt=None, ncpu=4):
 	if seqtype == 'nucl':
 		blast_app = 'blastn'
@@ -282,7 +288,7 @@ def blast(db_seq, qry_seq, seqtype='nucl', blast_out=None, blast_outfmt=None, nc
 		blast_outfmt = '6'
 	cmd = 'makeblastdb -in {} -dbtype {}'.format(db_seq, seqtype)
 	run_cmd(cmd, logger=logger)
-		
+
 	cmd = '{} -query {} -db {} -out {} -outfmt {} -num_threads {}'.format(blast_app, qry_seq, db_seq, blast_out, blast_outfmt, ncpu)
 #	cmd += " " + blast_opts
 	run_cmd(cmd, logger=logger)
@@ -309,24 +315,24 @@ class BlastOut(object):
 		d_best_hit = OrderedDict()
 		for rc in self.parse():
 			if rc.qseqid in d_best_hit:
-				if rc.bitscore > d_best_hit[rc.qseqid]:
+				if rc.bitscore > d_best_hit[rc.qseqid].bitscore:
 					d_best_hit[rc.qseqid] = rc
 			else:
 				d_best_hit[rc.qseqid] = rc
 		if fout is None:
 			return d_best_hit
-		for qseqid, rc in d_best_hit.iteritems():
+		for qseqid, rc in d_best_hit.items():
 			rc.write(fout)
 		return d_best_hit
-		
+
 class BlastOutRecord(object):
 	def __init__(self, outfmt, values):
 		self.values = values
 		for key, value in zip(outfmt, values):
 			setattr(self, key, BLASType[key](value))
 	def write(self, fout=sys.stdout):
-		print >> fout, '\t'.join(self.values)
-		
+		print('\t'.join(self.values), file=fout)
+
 class Classifier(object):
 	def __init__(self, gff, db='rexdb', fout=sys.stdout): # gff is sorted
 		self.gff = gff
@@ -354,7 +360,7 @@ class Classifier(object):
 		yield record
 	def classify(self, ):
 		line = ['#TE', 'Order', 'Superfamily', 'Clade', 'Complete', 'Strand', 'Domains']
-		print >> self.fout, '\t'.join(line)
+		print('\t'.join(line), file=self.fout)
 		for rc in self.parse():
 			rc_flt = rc
 			strands = [line.strand for line in rc_flt]
@@ -377,7 +383,7 @@ class Classifier(object):
 			elif self.db == 'gydb':
 				order, superfamily, max_clade, coding = self.identify_gydb(genes, clades)
 			line = [lid, order, superfamily, max_clade, coding, strand, domains]
-			print >> self.fout, '\t'.join(line)
+			print('\t'.join(line), file=self.fout)
 			yield CommonClassification(*line)
 	def identify_rexdb(self, genes, clades):
 		perfect_structure = {
@@ -443,9 +449,9 @@ class Classifier(object):
 		clade_count = Counter(clades)
 		max_clade = max(clade_count, key=lambda x: clade_count[x])
 		try: (order, superfamily) = d_map[max_clade]
-		except KeyError: 
+		except KeyError:
 			(order, superfamily) = ('Unknown', 'unknown')
-			logger.warn( 'unknown clade: {}'.format(max_clade) )
+			logger.warning( 'unknown clade: {}'.format(max_clade) )
 		try:
 			ordered_genes = perfect_structure[(order, superfamily)]
 			my_genes = [gene for gene in genes if gene in set(ordered_genes)]
@@ -465,7 +471,7 @@ class Classifier(object):
 			else:
 				try: intid = idmap[rc.id.split('#')[0]]
 				except KeyError as e:	# this should be rare
-					logger.warn( 'skipped KeyError: {}'.format(e) )
+					logger.warning( 'skipped KeyError: {}'.format(e) )
 			if intid in d_class:
 				neword, newfam = d_class[intid]
 				re_org = self.re_orgnize(rc.id, neword, newfam)
@@ -488,7 +494,7 @@ class Classifier(object):
 	@property
 	def clade_map(self):
 		return {rc.clade: (rc.order, rc.superfamily) for rc in CladeInfo()}
-			
+
 class CladeInfo():
 	def __init__(self, infile=DB['gydb']+'.info'):
 		self.infile = infile
@@ -512,7 +518,7 @@ class CladeInfo():
 			if i == 1:
 				title = temp
 				continue
-			self.dict = dict(zip(title, temp))
+			self.dict = dict(list(zip(title, temp)))
 			if self.dict['Clade'] == 'NA':
 				self.clade = self.dict['Cluster_or_genus']
 			else:
@@ -555,10 +561,10 @@ class CladeInfo():
 			'shadow': 'Unknown',
 			'all': 'Unknown',
 			}
-		for clade, order in order_map.items():
+		for clade, order in list(order_map.items()):
 			self.order, self.superfamily, self.clade, self.dict = [order, 'unknown', clade, {}]  # CHR_retroelement
-			yield self	
-				
+			yield self
+
 class GffLine(object):
 	def __init__(self, line):
 		temp = line.strip().split('\t')
@@ -602,18 +608,18 @@ class HmmDomRecord(object):
 				= temp[:22]
 		self.tlen, self.qlen, self.domi, self.domn, \
 			self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend = \
-			map(int, [self.tlen, self.qlen, self.domi, self.domn, \
-				self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend])
+			list(map(int, [self.tlen, self.qlen, self.domi, self.domn, \
+				self.hmmstart, self.hmmend, self.alnstart, self.alnend, self.envstart, self.envend]))
 		self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc = \
-			map(float, [self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc])
+			list(map(float, [self.evalue, self.score, self.bias, self.cevalue, self.ievalue, self.domscore, self.dombias, self.acc]))
 		self.tdesc = ' '.join(temp[22:])
 	@property
 	def hmmcov(self):
 		return round(1e2*(self.hmmend - self.hmmstart + 1) / self.tlen, 1)
-		
+
 def seq2dict(inSeq):
 	return dict([(rc.id, rc) for rc in SeqIO.parse(inSeq, 'fasta')])
-	
+
 def parse_hmmname(hmmname, db='gydb'):
 	db = db.lower()
 	if db == 'gydb':
@@ -675,7 +681,7 @@ class HmmCluster(object):
 			if rc.score > best[1].score:
 				best = (i, rc)
 		return best
-			
+
 class HmmClusterRecord(object):
 	def __init__(self, records):
 		self.records = records
@@ -692,7 +698,7 @@ def multi(*n):
 	for i in n:
 		result = result * i
 	return result
-	
+
 def hmm2best(inSeq, inHmmouts, nucl_len=None, prefix=None, db='rexdb', seqtype='nucl', mincov=20, maxeval=1e-3):
 	if prefix is None:
 		prefix = inSeq
@@ -733,7 +739,7 @@ def hmm2best(inSeq, inHmmouts, nucl_len=None, prefix=None, db='rexdb', seqtype='
 					d_besthit[key] = rc
 	d_seqs = seq2dict(inSeq)
 	lines = []
-	for (qid, domain), rc in d_besthit.items():
+	for (qid, domain), rc in list(d_besthit.items()):
 		if rc.hmmcov < mincov or rc.evalue > maxeval:
 			continue
 		rawid = qid
@@ -770,18 +776,18 @@ def hmm2best(inSeq, inHmmouts, nucl_len=None, prefix=None, db='rexdb', seqtype='
 	fgff = open(gff, 'w')
 	fseq = open(seq, 'w')
 	ftsv = open(tsv, 'w')
-	print >> ftsv, '\t'.join(['#id', 'length', 'evalue', 'coverge', 'probability', 'score'])
+	print('\t'.join(['#id', 'length', 'evalue', 'coverge', 'probability', 'score']), file=ftsv)
 	for line in sorted(lines, key=lambda x: (x[0], x[-3], x[3])):
 		gffline = line[:9]
-		gffline = map(str, gffline)
-		print >> fgff, '\t'.join(gffline)
+		gffline = list(map(str, gffline))
+		print('\t'.join(gffline), file=fgff)
 		gid, gseq = line[-2:]
 		gdesc = line[8]
-		print >> fseq, '>{} {}\n{}'.format(gid, gdesc, gseq)
+		print('>{} {}\n{}'.format(gid, gdesc, gseq), file=fseq)
 		evalue, hmmcov, acc = line[-6:-3]
 		score = gffline[5]
 		line = [gid, len(gseq), evalue, hmmcov, acc, score]
-		print >> ftsv, '\t'.join(map(str, line))
+		print('\t'.join(map(str, line)), file=ftsv)
 	fgff.close()
 	fseq.close()
 	return gff, seq
@@ -799,7 +805,7 @@ def translate_pp(inSeq, prefix=None, tmpdir='./tmp', processors=4):
 	chunk_prefix = '{}/{}'.format(tmpdir, 'chunk_nuclseq')
 	_, _, _, chunk_files = split_fastx_by_chunk_num(
 			inSeq, prefix=chunk_prefix, chunk_num=processors, seqfmt='fasta', suffix='')
-	
+
 def hmmscan(inSeq, hmmdb='rexdb.hmm', hmmout=None, ncpu=4):
 	if hmmout is None:
 		hmmout = prefix + '.domtbl'
@@ -811,14 +817,14 @@ def hmmscan_pp(inSeq, hmmdb='rexdb.hmm', hmmout=None, tmpdir='./tmp', processors
 	_, _, _, chunk_files = split_fastx_by_chunk_num(
 			inSeq, prefix=chunk_prefix, chunk_num=processors, seqfmt='fasta', suffix='')
 	domtbl_files = [chunk_file + '.domtbl' for chunk_file in chunk_files]
-	cmds = [ 
+	cmds = [
 		'hmmscan --notextw -E 0.01 --domE 0.01 --noali --domtblout {} {} {}'.format(domtbl_file, hmmdb, chunk_file) \
 			for chunk_file, domtbl_file in zip(chunk_files, domtbl_files)]
 	jobs = pp_run(cmds, processors=processors)
 	for cmd, (stdout, stderr, status) in zip(cmds, jobs):
 		if not status == 0:
-			logger.warn( "exit code {} for CMD '{}'".format(status, cmd) )
-			logger.warn('\n\tSTDOUT:\n{0}\n\tSTDERR:\n{1}\n\n'.format(stdout, stderr))
+			logger.warning( "exit code {} for CMD '{}'".format(status, cmd) )
+			logger.warning('\n\tSTDOUT:\n{0}\n\tSTDERR:\n{1}\n\n'.format(stdout, stderr))
 	# cat files
 	if hmmout is None:
 		hmmout = prefix + '.domtbl'
@@ -828,13 +834,13 @@ def hmmscan_pp(inSeq, hmmdb='rexdb.hmm', hmmout=None, tmpdir='./tmp', processors
 				f.write(line)
 	return hmmout
 
-def LTRlibAnn(ltrlib, hmmdb='rexdb', seqtype='nucl', prefix=None, 
+def LTRlibAnn(ltrlib, hmmdb='rexdb', seqtype='nucl', prefix=None,
 			force_write_hmmscan=False,
-			processors=4, tmpdir='./tmp', 
+			processors=4, tmpdir='./tmp',
 			mincov=20, maxeval=1e-3):
 	if prefix is None:
 		prefix = '{}.{}'.format(ltrlib, hmmdb)
-	
+
 	if seqtype == 'nucl':
 		logger.info( 'translating `{}` in six frames'.format(ltrlib) )
 		tmp_prefix = '{}/translated'.format(tmpdir)
@@ -843,7 +849,7 @@ def LTRlibAnn(ltrlib, hmmdb='rexdb', seqtype='nucl', prefix=None,
 	elif seqtype == 'prot':
 		aaSeq = ltrlib
 		d_nucl_len = None
-	
+
 	logger.info( 'HMM scanning against `{}`'.format(DB[hmmdb]) )
 	domtbl = prefix + '.domtbl'
 	if not (os.path.exists(domtbl) and os.path.getsize(domtbl) >0) or force_write_hmmscan:
@@ -891,7 +897,7 @@ class Dependency(object):
 			if version >= dp_version:
 				logger.info('hmmer\t{}\tOK'.format(version0))
 			elif version < dp_version:
-				logger.warn('hmmer version {} is too low. Please update to {} from http://hmmer.org/download.html'.format(version, dp_version))
+				logger.warning('hmmer version {} is too low. Please update to {} from http://hmmer.org/download.html'.format(version, dp_version))
 			else:
 				logger.info('hmmer version {} is too high. You may use the version {}. However, I update the database first.'.format(version, dp_version))
 				self.update_hmmer(db)
@@ -906,7 +912,7 @@ class Dependency(object):
 		bk_db, db = backup_file(db)
 		for suffix in ['.h3f', '.h3i', '.h3m', '.h3p']:
 			backup_file(bk_db + suffix)
-		cmd = 'hmmconvert {} > {}'.format(bk_db, db) 
+		cmd = 'hmmconvert {} > {}'.format(bk_db, db)
 		out, err, status0 = run_cmd(cmd, logger=logger)
 		cmd = 'hmmpress {}'.format(db)
 		out, err, status1 = run_cmd(cmd, logger=logger)
@@ -931,18 +937,18 @@ class Dependency(object):
 	def check_hmmer_verion(self, program):
 		cmd = '{} -h'.format(program)
 		out, err, status = run_cmd(cmd)
-		version = re.compile(r'HMMER (\S+)').search(out).groups()[0]
+		version = re.compile(r'HMMER (\S+)').search(out.decode('utf-8')).groups()[0]
 		return version
 	def check_blast_version(self, program):
 		cmd = '{} -version'.format(program)
 		out, err, status = run_cmd(cmd)
-		version = re.compile(r'blast\S* ([\d\.\+]+)').search(out).groups()[0]
+		version = re.compile(r'blast\S* ([\d\.\+]+)').search(out.decode('utf-8')).groups()[0]
 		return version
 def main():
 	subcmd = sys.argv[1]
 	if subcmd == 'LTRlibAnn':   # hmmscan + HmmBest
 		ltrlib = sys.argv[2]	# input is LTR library (fasta)
-		try: 
+		try:
 			hmmdb = sys.argv[3] # rexdb, gydb, pfam, etc.
 			try: seqtype = sys.argv[4]
 			except IndexError: seqtype = 'nucl'
@@ -961,7 +967,7 @@ def main():
 		for line in Classifier(gff, db=db):
 			continue
 	elif subcmd == 'replaceCls':	# LTRlibAnn + Classifier
-		ltrlib = sys.argv[2]	    # input: LTR library (nucl fasta) 
+		ltrlib = sys.argv[2]	    # input: LTR library (nucl fasta)
 		replaceCls(ltrlib)
 	elif subcmd == 'replaceClsLR':
 		genome = sys.argv[2]		# input: genome input for LTR_retriever pipeline

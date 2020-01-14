@@ -10,7 +10,7 @@ def six_frame_translate(inFa, fout=sys.stdout):
 				try: aa_seq = translate_seq(cds_seq)
 				except CodonTable.TranslationError: continue   # Codon 'XGA' is invalid
 				suffix = '|{}{}'.format(suffix0, frame+1)
-				print >> fout, '>{}{}\n{}'.format(rc.id, suffix, aa_seq)
+				print('>{}{}\n{}'.format(rc.id, suffix, aa_seq), file=fout)
 			
 def translate_seq(inSeq):
 	aa = inSeq.translate()
@@ -18,7 +18,7 @@ def translate_seq(inSeq):
 
 def main(inFa, outSeq=sys.stdout):
 	for rc in SeqIO.parse(inFa, 'fasta'):
-		print >> outSeq, '>{}\n{}'.format(rc.id, translate_seq(rc.seq))
+		print('>{}\n{}'.format(rc.id, translate_seq(rc.seq)), file=outSeq)
 
 if __name__ == '__main__':
 	import sys
