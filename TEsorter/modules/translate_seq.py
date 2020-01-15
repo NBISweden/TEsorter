@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 import sys
 from Bio import SeqIO
 from Bio.Data import CodonTable
@@ -11,7 +11,7 @@ def six_frame_translate(inFa, fout=sys.stdout):
 				except CodonTable.TranslationError: continue   # Codon 'XGA' is invalid
 				suffix = '|{}{}'.format(suffix0, frame+1)
 				print('>{}{}\n{}'.format(rc.id, suffix, aa_seq), file=fout)
-			
+
 def translate_seq(inSeq):
 	aa = inSeq.translate()
 	return aa

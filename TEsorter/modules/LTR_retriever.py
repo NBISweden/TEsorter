@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 # coding: utf-8
 '''# Author: zrg1989@qq.com
 # Version: 0.1
@@ -56,9 +56,9 @@ class CandidateRecord():
 			except SyntaxError: pass
 		self.INT_str, self.INT_end = self.lLTR_end+1, self.rLTR_str-1
 	def write(self, fout):
-		self.line = [self.start, self.end, self.len, self.lLTR_str, self.lLTR_end, self.lLTR_len, 
-				self.rLTR_str, self.rLTR_end, self.rLTR_len, self.similarity, 
-				self.seqid, self.chr, self.direction, self.TSD, self.lTSD, self.rTSD, 
+		self.line = [self.start, self.end, self.len, self.lLTR_str, self.lLTR_end, self.lLTR_len,
+				self.rLTR_str, self.rLTR_end, self.rLTR_len, self.similarity,
+				self.seqid, self.chr, self.direction, self.TSD, self.lTSD, self.rTSD,
 				self.motif, self.superfamily, self.family, self.ageya]
 		self.line = ['' if value is None else str(value) for value in self.line]
 		print('\t'.join(self.line), file=fout)
@@ -185,7 +185,7 @@ def InsertionTimePlot(genome, type, mu=1.3e-8):
 		timeStr = 'ageya'
 	else:
 		raise ValueError('Unknown type: {}'.format(type))
-	tmpfile = genome + '.pass.insert_time'	
+	tmpfile = genome + '.pass.insert_time'
 	f = open(tmpfile, 'w')
 	line = ['TE_Type', 'Insertion_Time']
 	print('\t'.join(line), file=f)
@@ -198,7 +198,7 @@ def InsertionTimePlot(genome, type, mu=1.3e-8):
 		line = list(map(str, line))
 		print('\t'.join(line), file=f)
 	f.close()
-	
+
 	# plot
 	r_src = '''
 data <- read.table('{}', head=T)
@@ -315,7 +315,7 @@ class Classifier():
 		clade_count = Counter(clades)
 		max_clade = max(clade_count, key=lambda x: clade_count[x])
 		try: (order, superfamily) = d_map[max_clade]
-		except KeyError: 
+		except KeyError:
 			(order, superfamily) = ('Unknown', 'unknown')
 			print('unknown clade: {}'.format(max_clade), file=sys.stderr)
 		try:
@@ -361,7 +361,7 @@ class Classifier():
 	@property
 	def clade_map(self):
 		return {rc.clade: (rc.order, rc.superfamily) for rc in CladeInfo()}
-			
+
 class CladeInfo():
 	def __init__(self, infile=DB['gydb']+'.info'):
 		self.infile = infile
@@ -389,7 +389,7 @@ class CladeInfo():
 				self.superfamily = 'Retroviridae'
 			self.order = 'LTR' if self.dict['System'] in {'LTR_retroelements', 'LTR_Retroelements', 'LTR_retroid_elements'} else self.dict['System']
 			self.clade = self.clade.replace('-', '_') # A-clade V-clade C-clade
-			
+
 			yield self
 			self.clade = self.clade.lower()
 			yield self
@@ -397,8 +397,8 @@ class CladeInfo():
 		yield self
 		for clade, order in zip(['retroelement', 'shadow', 'all'], ['LTR', 'Unknown', 'Unknown']): # CHR
 			self.order, self.superfamily, self.clade, self.dict = [order, 'unknown', clade, {}]  # CHR_retroelement
-			yield self	
-				
+			yield self
+
 class GffLine(object):
 	def __init__(self, line):
 		temp = line.strip().split('\t')
@@ -607,7 +607,7 @@ def parse_frame(string):
 		return '.', '.' #None,None
 	frame = int(string[-1]) -1
 	return strand, frame
-					
+
 def main():
 	subcmd = sys.argv[1]
 	if subcmd == 'InsertionTimePlot':
@@ -619,7 +619,7 @@ def main():
 		InsertionTimePlot(genome, type, mu=mu)
 	elif subcmd == 'LTRlibAnn': # hmmscan + HmmBest
 		ltrlib = sys.argv[2]	# input is LTR library (fasta)
-		try: 
+		try:
 			hmmdb = sys.argv[3] # rexdb, gydb, pfam, etc.
 			try: seqtype = sys.argv[4]
 			except IndexError: seqtype = 'dna'
@@ -642,7 +642,7 @@ def main():
 		for line in Classifier(gff, db=db):
 			continue
 	elif subcmd == 'replaceCls':	# LTRlibAnn + Classifier
-		ltrlib = sys.argv[2]	    # input: LTR library (nucl fasta) 
+		ltrlib = sys.argv[2]	    # input: LTR library (nucl fasta)
 		replaceCls(ltrlib)
 	elif subcmd == 'replaceClsLR':
 		genome = sys.argv[2]		# input: genome input for LTR_retriever pipeline

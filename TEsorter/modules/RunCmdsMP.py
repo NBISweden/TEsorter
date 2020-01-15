@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 #coding utf-8
 '''RUN system CoMmanDS in Multi-Processing'''
 import sys

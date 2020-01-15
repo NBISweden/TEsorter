@@ -1,5 +1,6 @@
-#!/bin/env python
-# coding: utf-8
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 '''Author: Zhang, Ren-Gang and Wang, Zhao-Xuan
 '''
 import sys
@@ -8,6 +9,7 @@ import re
 import shutil
 import glob
 import argparse
+import subprocess
 from collections import Counter, OrderedDict
 from Bio import SeqIO
 import logging
@@ -17,14 +19,13 @@ logger = logging.getLogger(__name__)
 bindir = os.path.dirname(os.path.realpath(__file__))
 sys.path = [bindir + '/bin'] + sys.path
 
-from translate_seq import six_frame_translate
+from .modules.translate_seq import six_frame_translate
 # for multi-processing HMMScan
-from RunCmdsMP import run_cmd, pp_run
-from split_records import split_fastx_by_chunk_num
+from .modules.RunCmdsMP import run_cmd, pp_run
+from .modules.split_records import split_fastx_by_chunk_num
 # for pass-2 blast classifying
-from get_record import get_records
-
-__version__ = '1.2.5.1'
+from .modules.get_record import get_records
+from TEsorter.version import __version__
 
 DB = {
 	'gydb' : bindir + '/database/GyDB2.hmm',
@@ -113,6 +114,28 @@ def Args():
 			setattr(args, key, float(par))
 	return args
 
+def check_db(db):
+	full_path = DB[db]
+	folder_path = os.path.dirname(full_path)
+	data_file = os.path.basename(full_path)
+	logger.info( 'db path: '+folder_path )
+	logger.info( 'db file: '+data_file )
+
+	if not os.path.exists(DB[db]):
+		logger.error( 'db '+db+' does not exist!' )
+		sys.exit()
+	else:
+		for root, dirs, files in os.walk(folder_path):
+			if os.path.exists(full_path+".h3i"):
+				logger.info(data_file+'\tOK')
+			else:
+				logger.info( 'db '+data_file+' not yet ready, building db!' )
+				command = "hmmpress -f "+full_path
+				#Execute the command
+				process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+				stdout, stderr = process.communicate()
+				logger.info(stdout.decode('utf-8'))
+
 def pipeline(args):
 	logger.info( 'VARS: {}'.format(vars(args)))
 	logger.info( 'checking dependencies:' )
@@ -121,6 +144,10 @@ def pipeline(args):
 		Dependency().check_blast()
 	if not os.path.exists(args.tmp_dir):
 		os.makedirs(args.tmp_dir)
+
+	logger.info( 'check database '+ args.hmm_database)
+	check_db(args.hmm_database)
+
 	logger.info( 'Start classifying pipeline' )
 	seq_num = len([1 for rc in SeqIO.parse(args.sequence, 'fasta')])
 	logger.info('total {} sequences'.format(seq_num))
@@ -944,37 +971,9 @@ class Dependency(object):
 		out, err, status = run_cmd(cmd)
 		version = re.compile(r'blast\S* ([\d\.\+]+)').search(out.decode('utf-8')).groups()[0]
 		return version
+
 def main():
-	subcmd = sys.argv[1]
-	if subcmd == 'LTRlibAnn':   # hmmscan + HmmBest
-		ltrlib = sys.argv[2]	# input is LTR library (fasta)
-		try:
-			hmmdb = sys.argv[3] # rexdb, gydb, pfam, etc.
-			try: seqtype = sys.argv[4]
-			except IndexError: seqtype = 'nucl'
-			LTRlibAnn(ltrlib, hmmdb=hmmdb, seqtype=seqtype)
-		except IndexError:
-			LTRlibAnn(ltrlib)
-	elif subcmd == 'HmmBest':
-		inSeq = sys.argv[2]          # input: LTR library (translated protein)
-		prefix = inSeq
-		inHmmouts = sys.argv[3:]     # input: hmmscan output (inSeq search against hmmdb)
-		hmm2best(inSeq, inHmmouts, prefix)
-	elif subcmd == 'Classifier':
-		gff = sys.argv[2]	    # input: gff3 output by LTRlibAnn or HmmBest
-		try: db = sys.argv[3]	# rexdb or gydb
-		except IndexError: db = 'rexdb'
-		for line in Classifier(gff, db=db):
-			continue
-	elif subcmd == 'replaceCls':	# LTRlibAnn + Classifier
-		ltrlib = sys.argv[2]	    # input: LTR library (nucl fasta)
-		replaceCls(ltrlib)
-	elif subcmd == 'replaceClsLR':
-		genome = sys.argv[2]		# input: genome input for LTR_retriever pipeline
-		Retriever(genome).re_classify()
-	else:
-		raise ValueError('Unknown command: {}'.format(subcmd))
+	pipeline(Args())
 
 if __name__ == '__main__':
-	#main()
-	pipeline(Args())
+	main()

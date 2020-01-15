@@ -1,10 +1,10 @@
-#!/bin/env python
+#!/usr/bin/env python
 import os
 import sys
 import re
 import uuid
 from Bio import SeqIO
-from RunCmdsMP import run_cmd
+from TEsorter.modules.RunCmdsMP import run_cmd
 
 def main(inSeq, domains, outSeq=sys.stdout, tmpdir='/tmp'):
 	d_domain = {domain: [] for domain in domains}
@@ -15,7 +15,7 @@ def main(inSeq, domains, outSeq=sys.stdout, tmpdir='/tmp'):
 		if domain in d_domain:
 			raw_id = '#'.join(rc.id.split('#')[:-1])
 			d_domain[domain] += [raw_id]
-	
+
 	i = 0
 	for domain, rawids in d_domain.items():
 		i += 1

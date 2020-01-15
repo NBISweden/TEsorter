@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 import sys
 import os
 import shutil
@@ -6,7 +6,7 @@ import argparse
 from io import IOBase
 from Bio import SeqIO
 
-from small_tools import open_file as open
+from TEsorter.modules.small_tools import open_file as open
 
 __version__ = '1.0'
 def split_sam_by_chunk_size(inSam, prefix, chunk_size):

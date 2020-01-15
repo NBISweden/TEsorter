@@ -1,61 +1,58 @@
 # TEsorter
 It is coded for [LTR_retriever](https://github.com/oushujun/LTR_retriever) to classify long terminal repeat retrotransposons (LTR-RTs) at first. It can also be used to classify any other TE sequences, including Class I and Class II elements which are covered by the [REXdb](http://repeatexplorer.org/?page_id=918) database.
-  
+
 For more details of methods and benchmarking results, see the [preprint paper](https://doi.org/10.1101/800177).
 
 ### Installation ###
 Dependencies:
 +    [python >3](https://www.python.org/)  
-	+   [biopython](https://biopython.org/): quickly install by `pip install biopython`  
+	+   [biopython](https://biopython.org/): quickly install by `pip install biopython` or `conda install biopython`  
 	+   [parallel python v1.6.4.4](https://www.parallelpython.com/): quickly install by `conda install pp`
-+    [hmmscan 3.1x or 3.2x](http://hmmer.org/): be compatible with HMMER3/f database format.
-+   [blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
- 
-```
-git clone https://github.com/zhangrengang/TEsorter
-```
-Note: do not move or hard link `TEsorter.py` alone to anywhere else, as it rely on `database/` and `bin/`. You can add the directory to `PATH` or soft link `TEsorter.py` to `PATH`.
++   [hmmscan 3.1x or 3.2x](http://hmmer.org/): be compatible with HMMER3/f database format. quickly install by `conda install hmmer`
++   [blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download): quickly install by `conda install blast`
 
+```
+git clone https://github.com/NBISweden/TEsorter
+```
 ### Quick Start ###
 ```
 git clone https://github.com/zhangrengang/TEsorter
 cd TEsorter
-sh build_database.sh 
-cd test
+python setup.py install
 
 # run
-python ../TEsorter.py rice6.9.5.liban
+TEsorter-test
 ```
-By default, the newly released [REXdb](http://repeatexplorer.org/?page_id=918) ([viridiplantae_v3.0 + metazoa_v3](https://bitbucket.org/petrnovak/re_databases)) database is used, which is more sensitive and more common and thus is recommended. 
+By default, the newly released [REXdb](http://repeatexplorer.org/?page_id=918) ([viridiplantae_v3.0 + metazoa_v3](https://bitbucket.org/petrnovak/re_databases)) database is used, which is more sensitive and more common and thus is recommended.
 
 For plants, it might be better to use only the plant database:
 ```
-python ../TEsorter.py rice6.9.5.liban -db rexdb-plant
+TEsorter input_file -db rexdb-plant
 ```
-  
+
 Classical [GyDB](http://gydb.org/) can also be used:
 ```
-python ../TEsorter.py rice6.9.5.liban -db gydb
+TEsorter input_file -db gydb
 ```
 To speed up, use more processors [default=4]:
 ```
-python ../TEsorter.py rice6.9.5.liban -p 20
+TEsorter input_file -p 20
 ```
 To improve sensitivity, reduce the criteria (coverage and E-value):
 ```
-python ../TEsorter.py rice6.9.5.liban -p 20 -cov 10 -eval 1e-2
+TEsorter input_file -p 20 -cov 10 -eval 1e-2
 ```
 To improve specificity, increase the criteria and disable the pass2 mode:
 ```
-python ../TEsorter.py rice6.9.5.liban -p 20 -cov 30 -eval 1e-5 -dp2
+TEsorter input_file -p 20 -cov 30 -eval 1e-5 -dp2
 ```
 To improve sensitivity of pass-2, reduce the rule:
 ```
-python ../TEsorter.py rice6.9.5.liban -p 20 -rule 70-30-80
+TEsorter input_file -p 20 -rule 70-30-80
 ```
 To classify TE polyprotein sequences ([an example](http://www.repeatmasker.org/RMDownload.html)) or gene protein seqeunces:
 ```
-python ../TEsorter.py RepeatPeps.lib -st prot -p 20
+TEsorter RepeatPeps.lib -st prot -p 20
 ```
 ### Outputs ###
 ```
@@ -77,8 +74,8 @@ rice6.9.5.liban.rexdb.cls.pep       the same sequences as `rice6.9.5.liban.rexdb
 
 ### Usage ###
 ```
-$ python TEsorter.py  -h
-usage: TEsorter.py [-h] [-v] [-db {rexdb,rexdb-plant,rexdb-metazoa,gydb}]
+$ TEsorter  -h
+usage: TEsorter [-h] [-v] [-db {rexdb,rexdb-plant,rexdb-metazoa,gydb}]
                    [-st {nucl,prot}] [-pre PREFIX] [-fw] [-p PROCESSORS]
                    [-tmp TMP_DIR] [-cov MIN_COVERAGE] [-eval MAX_EVALUE]
                    [-dp2] [-rule PASS2_RULE] [-nolib] [-norc] [-nocln]
@@ -132,28 +129,28 @@ optional arguments:
 You may want to use the RT domains to analysis relationships among retrotransposons (LTR, LINE, DIRS, etc.). Here is an example (with [mafft](https://mafft.cbrc.jp/alignment/software/) and [iqtree](http://www.iqtree.org/) installed):
 ```
 # to extract RT domain sequences
-cat rice6.9.5.liban.rexdb.dom.tsv | grep -P "\-RT\t" | python ../bin/get_record.py -i rice6.9.5.liban.rexdb.dom.faa -o rice6.9.5.liban.rexdb.dom.RT.faa -t fasta
+cat rice6.9.5.liban.rexdb.dom.tsv | grep -P "\-RT\t" | get_record.py -i rice6.9.5.liban.rexdb.dom.faa -o rice6.9.5.liban.rexdb.dom.RT.faa -t fasta
 
 # to align with MAFFT or other tools
 mafft --auto rice6.9.5.liban.rexdb.dom.RT.faa > rice6.9.5.liban.rexdb.dom.RT.aln
 
 # to reconduct the phylogenetic tree with IQTREE or other tools
-iqtree -s rice6.9.5.liban.rexdb.dom.RT.aln -bb 1000 -nt AUTO 
+iqtree -s rice6.9.5.liban.rexdb.dom.RT.aln -bb 1000 -nt AUTO
 
 # Finally, visualize and edit the tree 'rice6.9.5.liban.rexdb.RT.faa.aln.treefile' with FigTree or other tools.
 ```
 The alignments can also be generated by:
 ```
-python ../bin/concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep RT > rice6.9.5.liban.rexdb.cls.pep.RT.aln
+concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep RT > rice6.9.5.liban.rexdb.cls.pep.RT.aln
 ```
 The alignments of LTR-RTs full domains can be generated by (align and concatenate):
 ```
-python ../bin/concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep GAG PROT RH RT INT > rice6.9.5.liban.rexdb.cls.pep.full.aln
+concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep GAG PROT RH RT INT > rice6.9.5.liban.rexdb.cls.pep.full.aln
 ```
 The alignments of Class I INT and Class II TPase (DDE-transposases) can be generated by:
 ```
-python ../bin/concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep INT > rice6.9.5.liban.rexdb.cls.pep.INT.aln
-python ../bin/concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep TPase > rice6.9.5.liban.rexdb.cls.pep.TPase.aln
+concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep INT > rice6.9.5.liban.rexdb.cls.pep.INT.aln
+concatenate_domains.py rice6.9.5.liban.rexdb.cls.pep TPase > rice6.9.5.liban.rexdb.cls.pep.TPase.aln
 cat rice6.9.5.liban.rexdb.cls.pep.INT.aln rice6.9.5.liban.rexdb.cls.pep.TPase.aln > rice6.9.5.liban.rexdb.cls.pep.INT_TPase.faa
 mafft --auto rice6.9.5.liban.rexdb.cls.pep.INT_TPase.faa > rice6.9.5.liban.rexdb.cls.pep.INT_TPase.aln
 ```
@@ -168,10 +165,10 @@ Here are examples to extract TE sequences from outputs of wide-used softwares, w
 RepeatMasker [options] genome.fa
 
 # extract sequences
-python [path_to_TEsorter]/bin/RepeatMasker.py out2seqs genome.fa.out genome.fa > whole_genome_te.fa
+RepeatMasker.py out2seqs genome.fa.out genome.fa > whole_genome_te.fa
 
 # classify
-python [path_to_TEsorter]/TEsorter.py whole_genome_te.fa [options]
+TEsorter whole_genome_te.fa [options]
 ```
 
 2. extract all intact LTR-RTs sequences from [LTR_retriever](https://github.com/oushujun/LTR_retriever) outputs:
@@ -180,8 +177,8 @@ python [path_to_TEsorter]/TEsorter.py whole_genome_te.fa [options]
 LTR_retriever -genome genome.fa [options]
 
 # extract sequences
-python [path_to_TEsorter]/bin/LTR_retriever.py get_full_seqs genome.fa > intact_ltr.fa
+LTR_retriever.py get_full_seqs genome.fa > intact_ltr.fa
 
 # classify
-python [path_to_TEsorter]/TEsorter.py intact_ltr.fa [options]
+TEsorter intact_ltr.fa [options]
 ```
