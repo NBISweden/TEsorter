@@ -1,25 +1,45 @@
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/tesorter/README.html) [![Anaconda-Server Badge](https://anaconda.org/bioconda/agat/badges/license.svg)](https://anaconda.org/bioconda/emblmygff3)
+=========================================
 # TEsorter
 It is coded for [LTR_retriever](https://github.com/oushujun/LTR_retriever) to classify long terminal repeat retrotransposons (LTR-RTs) at first. It can also be used to classify any other TE sequences, including Class I and Class II elements which are covered by the [REXdb](http://repeatexplorer.org/?page_id=918) database.
 
 For more details of methods and benchmarking results, see the [preprint paper](https://doi.org/10.1101/800177).
 
-### Installation ###
+## Table of Contents
+   * [Installation](#installation)  
+       * [Using bioconda](using-bioconda)
+       * [Old school](#old-school)
+   * [Quick Start](#quick-start)
+   * [Usage](#usage)
+   * [Outputs](#outputs)
+   * [Limitations](#limitations)
+   * [Further phylogenetic analyses](further-phylogenetic-analyses)
+   * [Extracting TE sequences from genome for TEsorter](extracting-te-sequences-from-genome-for-tesorter)
+
+## Installation
+
+### Using bioconda
+
+```
+conda install -c bioconda tesorter
+```
+
+### Old school
+
 Dependencies:
 +    [python >3](https://www.python.org/)  
 	+   [biopython](https://biopython.org/): quickly install by `pip install biopython` or `conda install biopython`  
 	+   [parallel python v1.6.4.4](https://www.parallelpython.com/): quickly install by `conda install pp`
 +   [hmmscan 3.1x or 3.2x](http://hmmer.org/): be compatible with HMMER3/f database format. quickly install by `conda install hmmer`
 +   [blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download): quickly install by `conda install blast`
-
++ TEsorter:
 ```
 git clone https://github.com/NBISweden/TEsorter
-```
-### Quick Start ###
-```
-git clone https://github.com/zhangrengang/TEsorter
 cd TEsorter
 python setup.py install
-
+```
+## Quick Start
+```
 # run
 TEsorter-test
 ```
@@ -54,25 +74,8 @@ To classify TE polyprotein sequences ([an example](http://www.repeatmasker.org/R
 ```
 TEsorter RepeatPeps.lib -st prot -p 20
 ```
-### Outputs ###
-```
-rice6.9.5.liban.rexdb.domtbl        HMMScan raw output
-rice6.9.5.liban.rexdb.dom.faa       protein sequences of domain, which can be used for phylogenetic analysis.
-rice6.9.5.liban.rexdb.dom.tsv       inner domains of TEs/LTR-RTs, which might be used to filter domains based on their scores and coverages.
-rice6.9.5.liban.rexdb.dom.gff3      domain annotations in `gff3` format
-rice6.9.5.liban.rexdb.cls.tsv       TEs/LTR-RTs classifications
-    Column 1: raw id
-    Column 2: Order, e.g. LTR
-    Column 3: Superfamily, e.g. Copia
-    Column 4: Clade, e.g. SIRE
-    Column 5: Complete, "yes" means one LTR Copia/Gypsy element with full GAG-POL domains.
-    Column 6: Strand, + or - or ?
-    Column 7: Domains, e.g. GAG|SIRE PROT|SIRE INT|SIRE RT|SIRE RH|SIRE; `none` for pass-2 classifications
-rice6.9.5.liban.rexdb.cls.lib       fasta library for RepeatMasker
-rice6.9.5.liban.rexdb.cls.pep       the same sequences as `rice6.9.5.liban.rexdb.dom.faa`, but id is changed with classifications.
-```
 
-### Usage ###
+## Usage  
 ```
 $ TEsorter  -h
 usage: TEsorter [-h] [-v] [-db {rexdb,rexdb-plant,rexdb-metazoa,gydb}]
@@ -120,12 +123,30 @@ optional arguments:
                         [default=False]
 ```
 
-### Limitations ###
+## Outputs  
+```
+rice6.9.5.liban.rexdb.domtbl        HMMScan raw output
+rice6.9.5.liban.rexdb.dom.faa       protein sequences of domain, which can be used for phylogenetic analysis.
+rice6.9.5.liban.rexdb.dom.tsv       inner domains of TEs/LTR-RTs, which might be used to filter domains based on their scores and coverages.
+rice6.9.5.liban.rexdb.dom.gff3      domain annotations in `gff3` format
+rice6.9.5.liban.rexdb.cls.tsv       TEs/LTR-RTs classifications
+    Column 1: raw id
+    Column 2: Order, e.g. LTR
+    Column 3: Superfamily, e.g. Copia
+    Column 4: Clade, e.g. SIRE
+    Column 5: Complete, "yes" means one LTR Copia/Gypsy element with full GAG-POL domains.
+    Column 6: Strand, + or - or ?
+    Column 7: Domains, e.g. GAG|SIRE PROT|SIRE INT|SIRE RT|SIRE RH|SIRE; `none` for pass-2 classifications
+rice6.9.5.liban.rexdb.cls.lib       fasta library for RepeatMasker
+rice6.9.5.liban.rexdb.cls.pep       the same sequences as `rice6.9.5.liban.rexdb.dom.faa`, but id is changed with classifications.
+```
+
+## Limitations  
 1. For each domain (e.g. RT), only the best hit with the highest score will output, which means: 1) if frame is shifted, only one part can be annotated; 2) for example, if two or more RT domains are present in one query sequence, only one of these RT domains will be annotated.
 2. Many LTR-RTs cannot be classified due to no hit, which might be because: 1) the database is still incompleted; 2) some LTR-RTs may have too many mutations such as frame shifts and stop gains or have lost protein domains; 3) some LTR-RTs may be false positive. For the test data set ([rice6.9.5.liban](https://raw.githubusercontent.com/oushujun/EDTA/master/database/rice6.9.5.liban)), ~84% LTR-RTs (_INT sequences) are classified.
 3. Non-autonomous TEs that lack protein domains, some un-active autonomous TEs that have lost their protein domains and any other elements that contain none protein domains, are excepted to be un-classified.
 
-### Further phylogenetic analyses ###
+## Further phylogenetic analyses  
 You may want to use the RT domains to analysis relationships among retrotransposons (LTR, LINE, DIRS, etc.). Here is an example (with [mafft](https://mafft.cbrc.jp/alignment/software/) and [iqtree](http://www.iqtree.org/) installed):
 ```
 # to extract RT domain sequences
@@ -156,7 +177,7 @@ mafft --auto rice6.9.5.liban.rexdb.cls.pep.INT_TPase.faa > rice6.9.5.liban.rexdb
 ```
 Note: the domain names between rexdb and gydb are different: PROT (rexdb) = AP (gydb), RH (rexdb) = RNaseH (gydb). You should use the actual domain name.
 
-### Extracting TE sequences from genome for TEsorter ###
+## Extracting TE sequences from genome for TEsorter  
 Here are examples to extract TE sequences from outputs of wide-used softwares, when you have only genome sequences.
 
 1. extract all TE sequences from [RepeatMasker](http://www.repeatmasker.org/RMDownload.html) output:
