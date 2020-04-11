@@ -1,5 +1,7 @@
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/tesorter/README.html) [![Anaconda-Server Badge](https://anaconda.org/bioconda/agat/badges/license.svg)](https://anaconda.org/bioconda/emblmygff3)
 =========================================
+Note: This repo is created just for ease of creating a conda package for TEsorter in python3, please refer to the original site at https://github.com/zhangrengang/TEsorter if you have any questions.
+=========================================
 # TEsorter
 It is coded for [LTR_retriever](https://github.com/oushujun/LTR_retriever) to classify long terminal repeat retrotransposons (LTR-RTs) at first. It can also be used to classify any other TE sequences, including Class I and Class II elements which are covered by the [REXdb](http://repeatexplorer.org/?page_id=918) database.
 
